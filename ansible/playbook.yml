@@ -30,7 +30,7 @@
       git:
         repo: 'https://github.com/Mau-Noj/terraform-ansible'
         dest: "{{ app_dir }}"
-        version: main
+        version: master
         force: yes
 
     - name: Ajustar permisos del proyecto
