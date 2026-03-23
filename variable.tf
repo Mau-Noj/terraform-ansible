@@ -3,10 +3,6 @@ variable "do_token" {
   sensitive   = true
 }
 
-variable "pvt_key" {
-  description = "Ruta a tu llave privada SSH para que Ansible pueda entrar"
-}
-
 variable "region" {
   default = "nyc1"
 }
