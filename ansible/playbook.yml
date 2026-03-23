@@ -7,7 +7,11 @@
     app_user: vaadin
 
   tasks:
-    # ── 1. DEPENDENCIAS ──────────────────────────────────────────
+    # ── 1. ESPERAR APT LIBRE (FIX LOCK) ─────────────────────────
+    - name: Esperar apt libre
+      shell: while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 5; done
+
+    # ── 2. DEPENDENCIAS ─────────────────────────────────────────
     - name: Instalar dependencias
       apt:
         name:
@@ -18,20 +22,20 @@
         update_cache: yes
         state: present
 
-    # ── 2. CREAR USUARIO SEGURO ────────────────────────────────
+    # ── 3. CREAR USUARIO ────────────────────────────────────────
     - name: Crear usuario para la aplicación
       user:
         name: "{{ app_user }}"
         system: yes
         create_home: no
 
-    # ── 3. CLONAR REPO ─────────────────────────────────────────
-    - name: Clonar repositorio
+    # ── 4. CLONAR REPO (APP REAL, NO INFRA) ─────────────────────
+    - name: Clonar repositorio de la app
       git:
-        repo: 'https://github.com/Mau-Noj/terraform-ansible'
+        repo: 'https://github.com/TU_USUARIO/TU_APP_VAADIN.git'
         dest: "{{ app_dir }}"
-        version: master
-        force: yes
+        version: HEAD
+        update: yes
 
     - name: Ajustar permisos del proyecto
       file:
@@ -40,13 +44,16 @@
         group: "{{ app_user }}"
         recurse: yes
 
-    # ── 4. BUILD MAVEN ───────────────────────────────────────────
+    # ── 5. BUILD MAVEN (SIN PROFILE PROBLEMÁTICO) ───────────────
     - name: Build con Maven
-      command: mvn clean package -Pproduction -DskipTests
+      command: mvn clean package -DskipTests
       args:
         chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+      environment:
+        JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
-    # ── 5. BUSCAR JAR ────────────────────────────────────────────
+    # ── 6. BUSCAR JAR ───────────────────────────────────────────
     - name: Encontrar el JAR
       find:
         paths: "{{ app_dir }}/target"
@@ -63,7 +70,7 @@
       set_fact:
         jar_path: "{{ jar_files.files[0].path }}"
 
-    # ── 6. SYSTEMD ───────────────────────────────────────────────
+    # ── 7. SYSTEMD ──────────────────────────────────────────────
     - name: Crear servicio systemd
       copy:
         dest: /etc/systemd/system/vaadin.service
@@ -74,6 +81,7 @@
 
           [Service]
           User={{ app_user }}
+          WorkingDirectory={{ app_dir }}
           ExecStart=/usr/bin/java -jar {{ jar_path }}
           Restart=always
           RestartSec=10
@@ -82,7 +90,7 @@
           WantedBy=multi-user.target
       notify: Restart Vaadin
 
-    # ── 7. NGINX ─────────────────────────────────────────────────
+    # ── 8. NGINX ────────────────────────────────────────────────
     - name: Configurar Nginx
       copy:
         dest: /etc/nginx/sites-available/vaadin
@@ -109,22 +117,22 @@
           }
       notify: Restart Nginx
 
-    - name: Habilitar sitio
+    - name: Habilitar sitio Nginx
       file:
         src: /etc/nginx/sites-available/vaadin
         dest: /etc/nginx/sites-enabled/vaadin
         state: link
 
-    - name: Eliminar default
+    - name: Eliminar config default
       file:
         path: /etc/nginx/sites-enabled/default
         state: absent
 
-    - name: Validar nginx
+    - name: Validar configuración Nginx
       command: nginx -t
       changed_when: false
 
-    # ── 8. SERVICIOS ─────────────────────────────────────────────
+    # ── 9. SERVICIOS ────────────────────────────────────────────
     - name: Asegurar servicios activos
       systemd:
         name: "{{ item }}"
