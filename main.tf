@@ -8,7 +8,7 @@ resource "digitalocean_droplet" "web" {
   ssh_keys = ["73:10:0b:6c:92:49:c8:91:77:c9:0d:ed:79:62:f5:7b"]
 }
 
-# ── FIREWALL ───────────────────────────────────────────
+# ── FIREWALL ──────────────────────────────────────────
 resource "digitalocean_firewall" "web" {
   name = "web-firewall"
 
