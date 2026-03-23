@@ -1,0 +1,98 @@
+name: "Deploy Infrastructure"
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform_ansible:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. CHECKOUT ─────────────────────────────────────────────
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      # ── 2. TERRAFORM ─────────────────────────────────────────────
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+        run: terraform init
+
+      - name: Terraform Apply
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+        run: terraform apply -auto-approve
+
+      # ── 3. OBTENER IP ────────────────────────────────────────────
+      - name: Obtener IP del servidor
+        id: get_ip
+        run: |
+          IP=$(terraform output -raw server_ip)
+          echo "server_ip=$IP" >> $GITHUB_OUTPUT
+          echo "IP del servidor: $IP"
+
+      # ── 4. CONFIGURAR SSH (ANTES DE USARLO) ─────────────────────
+      - name: Configurar clave SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      # ── 5. ESPERAR SSH ─────────────────────────────────────────
+      - name: Esperar SSH disponible
+        run: |
+          IP="${{ steps.get_ip.outputs.server_ip }}"
+          echo "Esperando SSH en $IP..."
+
+          for i in $(seq 1 30); do
+            if ssh -o StrictHostKeyChecking=no \
+                   -o ConnectTimeout=5 \
+                   -i ~/.ssh/deploy_key \
+                   root@$IP "echo ok" 2>/dev/null; then
+              echo "SSH disponible"
+              exit 0
+            fi
+            echo "Intento $i/30 — esperando 10s..."
+            sleep 10
+          done
+
+          echo "SSH nunca estuvo disponible"
+          exit 1
+
+      # ── 6. ANSIBLE ─────────────────────────────────────────────
+      - name: Setup Ansible
+        run: pip install ansible
+
+      - name: Crear inventario de Ansible
+        run: |
+          IP="${{ steps.get_ip.outputs.server_ip }}"
+          cat > inventory.ini << EOF
+          [all]
+          vaadin-server ansible_host=$IP ansible_user=root ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+          EOF
+          echo "Inventario creado:"
+          cat inventory.ini
+
+      - name: Run Ansible Playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible-playbook \
+            -i inventory.ini \
+            ansible/playbook.yml \
+            --private-key ~/.ssh/deploy_key \
+            -u root \
+            -v
+
+      # ── 7. LIMPIEZA ────────────────────────────────────────────
+      - name: Limpiar clave SSH
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

@@ -1,0 +1,147 @@
+- name: Configurar Vaadin con Nginx
+  hosts: all
+  become: yes
+
+  vars:
+    app_dir: /opt/vaadin-app
+    app_user: vaadin
+
+  tasks:
+    # ── 1. DEPENDENCIAS ──────────────────────────────────────────
+    - name: Instalar dependencias
+      apt:
+        name:
+          - openjdk-17-jdk
+          - maven
+          - git
+          - nginx
+        update_cache: yes
+        state: present
+
+    # ── 2. CREAR USUARIO SEGURO ──────────────────────────────────
+    - name: Crear usuario para la aplicación
+      user:
+        name: "{{ app_user }}"
+        system: yes
+        create_home: no
+
+    # ── 3. CLONAR REPO ───────────────────────────────────────────
+    - name: Clonar repositorio
+      git:
+        repo: 'https://github.com/Mau-Noj/terraform-ansible'
+        dest: "{{ app_dir }}"
+        version: main
+        force: yes
+
+    - name: Ajustar permisos del proyecto
+      file:
+        path: "{{ app_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        recurse: yes
+
+    # ── 4. BUILD MAVEN ───────────────────────────────────────────
+    - name: Build con Maven
+      command: mvn clean package -Pproduction -DskipTests
+      args:
+        chdir: "{{ app_dir }}"
+
+    # ── 5. BUSCAR JAR ────────────────────────────────────────────
+    - name: Encontrar el JAR
+      find:
+        paths: "{{ app_dir }}/target"
+        patterns: "*.jar"
+        excludes: "*-sources.jar"
+      register: jar_files
+
+    - name: Validar JAR
+      fail:
+        msg: "No se encontró ningún JAR"
+      when: jar_files.files | length == 0
+
+    - name: Guardar ruta del JAR
+      set_fact:
+        jar_path: "{{ jar_files.files[0].path }}"
+
+    # ── 6. SYSTEMD ───────────────────────────────────────────────
+    - name: Crear servicio systemd
+      copy:
+        dest: /etc/systemd/system/vaadin.service
+        content: |
+          [Unit]
+          Description=Vaadin Java App
+          After=network.target
+
+          [Service]
+          User={{ app_user }}
+          ExecStart=/usr/bin/java -jar {{ jar_path }}
+          Restart=always
+          RestartSec=10
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart Vaadin
+
+    # ── 7. NGINX ─────────────────────────────────────────────────
+    - name: Configurar Nginx
+      copy:
+        dest: /etc/nginx/sites-available/vaadin
+        content: |
+          server {
+              listen 80;
+              server_name _;
+
+              location / {
+                  proxy_pass http://localhost:8080;
+                  proxy_http_version 1.1;
+
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+
+                  proxy_read_timeout 3600;
+                  proxy_send_timeout 3600;
+              }
+          }
+      notify: Restart Nginx
+
+    - name: Habilitar sitio
+      file:
+        src: /etc/nginx/sites-available/vaadin
+        dest: /etc/nginx/sites-enabled/vaadin
+        state: link
+
+    - name: Eliminar default
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Validar nginx
+      command: nginx -t
+      changed_when: false
+
+    # ── 8. SERVICIOS ─────────────────────────────────────────────
+    - name: Asegurar servicios activos
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - nginx
+        - vaadin
+
+  handlers:
+    - name: Restart Nginx
+      systemd:
+        name: nginx
+        state: restarted
+
+    - name: Restart Vaadin
+      systemd:
+        name: vaadin
+        state: restarted
+        daemon_reload: yes

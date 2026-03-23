@@ -1,0 +1,24 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Terraform lock (NO ignorar en equipos)
+# .terraform.lock.hcl
+
+# Archivos generados
+inventory.ini
+ip_address.txt
+
+# Node
+node_modules/
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+
+# IDE / sistema
+.vscode/
+.DS_Store
