@@ -18,14 +18,14 @@
         update_cache: yes
         state: present
 
-    # ── 2. CREAR USUARIO SEGURO ──────────────────────────────────
+    # ── 2. CREAR USUARIO SEGURO ─────────────────────────────────
     - name: Crear usuario para la aplicación
       user:
         name: "{{ app_user }}"
         system: yes
         create_home: no
 
-    # ── 3. CLONAR REPO ───────────────────────────────────────────
+    # ── 3. CLONAR REPO ──────────────────────────────────────────
     - name: Clonar repositorio
       git:
         repo: 'https://github.com/Mau-Noj/terraform-ansible'
