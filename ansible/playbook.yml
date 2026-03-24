@@ -58,7 +58,7 @@
       set_fact:
         jar_path: "{{ app_dir }}/Ejemplo-Vaadin/target/Ejemplo-Vaadin-1.0-SNAPSHOT.jar"
 
-    # ── 7. SYSTEMD ──────────────────────────────────
+    # ── 7. SYSTEMD ──────────────────────────────────────────
     - name: Crear servicio systemd
       copy:
         dest: /etc/systemd/system/vaadin.service
@@ -71,7 +71,7 @@
           User={{ app_user }}
           WorkingDirectory={{ app_dir }}/Ejemplo-Vaadin
           Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
-          ExecStart=/usr/bin/java -jar {{ jar_path }}
+          ExecStart=/usr/bin/java -Dvaadin.productionMode=true -jar {{ jar_path }}
           Restart=always
           RestartSec=5
 
@@ -87,7 +87,7 @@
         enabled: yes
         state: restarted
 
-    # ── 8. ESPERAR APP (CLAVE 🔥) ───────────────────
+    # ── 8. ESPERAR APP  ───────────────────
     - name: Esperar a que la app responda
       wait_for:
         port: 8080
