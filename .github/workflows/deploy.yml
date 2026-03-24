@@ -44,7 +44,7 @@ jobs:
           echo "server_ip=$IP" >> $GITHUB_OUTPUT
           echo "IP del servidor: $IP"
 
-      # ── 4. CONFIGURAR SSH ───────────────────────────────────────
+      # ── 4. CONFIGURAR SSH ──────────────────────────────────────
       - name: Configurar clave SSH
         run: |
           mkdir -p ~/.ssh
