@@ -25,6 +25,12 @@ jobs:
           TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
         run: terraform init
 
+      # 🔥 NUEVO — DESTROY ANTES DE CREAR
+      - name: Terraform Destroy (limpieza)
+        env:
+          TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+        run: terraform destroy -auto-approve || true
+
       - name: Terraform Apply
         env:
           TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
@@ -38,7 +44,7 @@ jobs:
           echo "server_ip=$IP" >> $GITHUB_OUTPUT
           echo "IP del servidor: $IP"
 
-      # ── 4. CONFIGURAR SSH (ANTES DE USARLO) ─────────────────────
+      # ── 4. CONFIGURAR SSH ───────────────────────────────────────
       - name: Configurar clave SSH
         run: |
           mkdir -p ~/.ssh
