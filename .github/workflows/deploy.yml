@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. CHECKOUT ─────────────────────────────────────────────
+      # ── 1. CHECKOUT ────────────────────────────────────────────
       - name: Checkout código
         uses: actions/checkout@v4
 
-      # ── 2. TERRAFORM ─────────────────────────────────────────────
+      # ── 2. TERRAFORM ────────────────────────────────────────────
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
