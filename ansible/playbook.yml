@@ -32,9 +32,9 @@
     # ── 4. CLONAR REPO (APP REAL, NO INFRA) ─────────────────────
     - name: Clonar repositorio de la app
       git:
-        repo: 'https://github.com/TU_USUARIO/TU_APP_VAADIN.git'
+        repo: 'https://github.com/Mau-Noj/mi-app-vaadin'
         dest: "{{ app_dir }}"
-        version: HEAD
+        version: master
         update: yes
 
     - name: Ajustar permisos del proyecto
