@@ -46,7 +46,7 @@
 
     # ── 5. BUILD ────────────────────────────────────
     - name: Build con Maven
-      command: mvn clean package -DskipTests
+      command: mvn clean package -Pproduction -DskipTests 
       args:
         chdir: "{{ app_dir }}/Ejemplo-Vaadin"
       become_user: "{{ app_user }}"
@@ -70,6 +70,7 @@
           [Service]
           User={{ app_user }}
           WorkingDirectory={{ app_dir }}/Ejemplo-Vaadin
+          Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
           ExecStart=/usr/bin/java -jar {{ jar_path }}
           Restart=always
           RestartSec=5
@@ -91,7 +92,7 @@
       wait_for:
         port: 8080
         delay: 10
-        timeout: 120
+        timeout: 320
 
     # ── 9. NGINX ────────────────────────────────────
     - name: Configurar Nginx
