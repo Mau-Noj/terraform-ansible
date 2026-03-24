@@ -48,7 +48,7 @@
     - name: Build con Maven
       command: mvn clean package -DskipTests
       args:
-        chdir: "{{ app_dir }}"
+        chdir: "{{ app_dir }}/Ejemplo-Vaadin"
       become_user: "{{ app_user }}"
       environment:
         JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
@@ -56,7 +56,7 @@
     # ── 6. BUSCAR JAR ───────────────────────────────────────────
     - name: Encontrar el JAR
       find:
-        paths: "{{ app_dir }}/target"
+        paths: "{{ app_dir }}/Ejemplo-Vaadin/target"
         patterns: "*.jar"
         excludes: "*-sources.jar"
       register: jar_files
