@@ -27,7 +27,7 @@
       user:
         name: "{{ app_user }}"
         system: yes
-        create_home: no
+        create_home: yes
 
     # ── 4. CLONAR REPO (APP REAL, NO INFRA) ─────────────────────
     - name: Clonar repositorio de la app
